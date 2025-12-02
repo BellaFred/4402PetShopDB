@@ -17,13 +17,18 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
 
   const handleLogin = () => {
-    if (!email || !password) {
-      Alert.alert('Missing info', 'Please fill out all fields.');
-      return;
-    }
+  if (!email || !password) {
+    Alert.alert('Missing info', 'Please fill out all fields.');
+    return;
+  }
 
-    Alert.alert('Log In', 'Login pressed (wire this up later).');
-  };
+  if (email === '1234' && password === '1234') {
+    router.replace('/home');
+  } else {
+    Alert.alert('Login failed', 'Invalid email or password. Try 1234 / 1234.');
+  }
+};
+
 
   const handleGoToSignUp = () => {
     router.replace('/signup');
