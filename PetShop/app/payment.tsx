@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  TextInput,
 } from 'react-native';
 import { router } from 'expo-router';
 import BottomNav from './components/BottomNav';
@@ -34,6 +35,12 @@ export default function PaymentScreen() {
 
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfoRow | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const [cardholderInput, setCardholderInput] = useState('');
+  const [cardnumberInput, setCardnumberInput] = useState('');
+  const [cardexpirationInput, setCardexpirationInput] = useState('');
+  const [cvvInput, setCvvInput] = useState('');
+  const [billingaddressInput, setBillingaddressInput] = useState('');
 
   const total = useMemo(
     () => items.reduce((sum, p) => sum + p.price, 0),
@@ -67,10 +74,7 @@ export default function PaymentScreen() {
         }
 
         if (!data) {
-          Alert.alert(
-            'No payment info',
-            'No saved payment information was found for this account.'
-          );
+          setPaymentInfo(null);
           return;
         }
 
@@ -92,13 +96,8 @@ export default function PaymentScreen() {
     return `**** **** **** ${last4}`;
   };
 
-  
+ 
   const handleConfirm = async () => {
-    if (!paymentInfo) {
-      Alert.alert('Error', 'No payment information found.');
-      return;
-    }
-
     if (!customerId) {
       Alert.alert('Error', 'Not logged in.');
       router.replace('/login');
@@ -115,11 +114,75 @@ export default function PaymentScreen() {
       return;
     }
 
+    let paymentIdToUse: string | null = paymentInfo?.paymentid ?? null;
+
+    if (!paymentInfo) {
+      if (
+        !cardholderInput ||
+        !cardnumberInput ||
+        !cardexpirationInput ||
+        !cvvInput ||
+        !billingaddressInput
+      ) {
+        Alert.alert(
+          'Missing info',
+          'Please fill out all payment fields before confirming.'
+        );
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('paymentinfo')
+          .insert([
+            {
+              customerid: customerId,
+              cardnumber: cardnumberInput,
+              cardexpiration: cardexpirationInput,
+              cvv: cvvInput,
+              cardholder: cardholderInput,
+              billingaddress: billingaddressInput,
+            },
+          ])
+          .select();
+
+        if (error) {
+          console.error('Error saving payment info:', error);
+          Alert.alert(
+            'Error',
+            'Could not save payment information. Please try again.'
+          );
+          return;
+        }
+
+        if (data && data.length > 0) {
+          const saved = data[0] as PaymentInfoRow;
+          setPaymentInfo(saved);
+          paymentIdToUse = saved.paymentid;
+        }
+      } catch (err) {
+        console.error('Unexpected error saving payment info:', err);
+        Alert.alert(
+          'Error',
+          'Something went wrong while saving your payment info.'
+        );
+        return;
+      }
+    }
+
+    if (!paymentIdToUse) {
+      Alert.alert(
+        'Error',
+        'No payment method available to use for this order.'
+      );
+      return;
+    }
+
     try {
       const rows = items.map(pet => ({
         customerid: customerId,
         employeeid: null, // optional
-        paymentid: paymentInfo.paymentid,
+        paymentid: paymentIdToUse,
         petid: Number(pet.id),
         orderdate: new Date().toISOString().slice(0, 10),
         totalamount: total,
@@ -133,7 +196,7 @@ export default function PaymentScreen() {
       const petIds = items.map(pet => Number(pet.id));
       const { error: petError } = await supabase
         .from('pet')
-        .update({ adoptionstatus: 'Adopted' }) 
+        .update({ adoptionstatus: 'adopted' })
         .in('petid', petIds);
 
       if (petError) {
@@ -181,22 +244,79 @@ export default function PaymentScreen() {
                 <Text style={styles.label}>Billing Address</Text>
                 <Text style={styles.value}>{paymentInfo.billingaddress}</Text>
               </View>
-
-              {/* 💵 total price display */}
-              {items.length > 0 && (
-                <View style={styles.totalBox}>
-                  <Text style={styles.totalLabel}>Total:</Text>
-                  <Text style={styles.totalValue}>
-                    ${total.toFixed(2)}
-                  </Text>
-                </View>
-              )}
             </>
           )}
 
           {!loading && !paymentInfo && (
+            <>
+              <View style={styles.cardBox}>
+                <Text style={styles.label}>Cardholder</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Name on card"
+                  placeholderTextColor="#A7D6D3"
+                  value={cardholderInput}
+                  onChangeText={setCardholderInput}
+                />
+
+                <Text style={styles.label}>Card Number</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="1234 5678 9012 3456"
+                  placeholderTextColor="#A7D6D3"
+                  keyboardType="number-pad"
+                  value={cardnumberInput}
+                  onChangeText={setCardnumberInput}
+                />
+
+                <View style={styles.rowHalf}>
+                  <View style={{ flex: 1, marginRight: 8 }}>
+                    <Text style={styles.label}>Expiration</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="MM/YY"
+                      placeholderTextColor="#A7D6D3"
+                      value={cardexpirationInput}
+                      onChangeText={setCardexpirationInput}
+                    />
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 8 }}>
+                    <Text style={styles.label}>CVV</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="123"
+                      placeholderTextColor="#A7D6D3"
+                      keyboardType="number-pad"
+                      secureTextEntry
+                      value={cvvInput}
+                      onChangeText={setCvvInput}
+                    />
+                  </View>
+                </View>
+
+                <Text style={styles.label}>Billing Address</Text>
+                <TextInput
+                  style={[styles.input, styles.multiline]}
+                  placeholder="Street, City, State, ZIP"
+                  placeholderTextColor="#A7D6D3"
+                  multiline
+                  value={billingaddressInput}
+                  onChangeText={setBillingaddressInput}
+                />
+              </View>
+            </>
+          )}
+
+          {!loading && items.length > 0 && (
+            <View style={styles.totalBox}>
+              <Text style={styles.totalLabel}>Total:</Text>
+              <Text style={styles.totalValue}>${total.toFixed(2)}</Text>
+            </View>
+          )}
+
+          {!loading && !paymentInfo && items.length === 0 && (
             <Text style={styles.noInfoText}>
-              No saved payment info for this account.
+              No pets in your cart to purchase.
             </Text>
           )}
         </View>
@@ -205,7 +325,7 @@ export default function PaymentScreen() {
           <TouchableOpacity
             style={styles.confirmButton}
             onPress={handleConfirm}
-            disabled={!paymentInfo || items.length === 0}
+            disabled={items.length === 0}
           >
             <Text style={styles.confirmText}>Confirm Purchase</Text>
           </TouchableOpacity>
@@ -267,6 +387,23 @@ const styles = StyleSheet.create({
     marginTop: 24,
     color: TEXT,
     fontSize: 16,
+  },
+  input: {
+    marginTop: 4,
+    backgroundColor: '#004A4A',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    color: TEXT,
+    fontSize: 14,
+  },
+  multiline: {
+    minHeight: 60,
+    textAlignVertical: 'top',
+  },
+  rowHalf: {
+    flexDirection: 'row',
+    marginTop: 8,
   },
   totalBox: {
     marginTop: 16,
