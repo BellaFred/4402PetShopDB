@@ -9,15 +9,13 @@ import {
 import { router } from 'expo-router';
 import BottomNav from './components/BottomNav';
 import { useUser } from './context/userContext';
+import { supabase } from '../lib/supabase';
 
 export default function ProfileScreen() {
   const { email, name, setEmail, setName } = useUser();
 
   const handleChangePassword = () => {
-    Alert.alert(
-      'Change Password',
-      'This is only a UI prototype – no real password system implemented.'
-    );
+    router.push('/change-password');
   };
 
   const handleSignOut = () => {
@@ -26,10 +24,52 @@ export default function ProfileScreen() {
     router.replace('/login');
   };
 
+  const actuallyDelete = async () => {
+    if (!email) {
+      Alert.alert('Error', 'No email found for this account. Please log in again.');
+      router.replace('/login');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('customer')
+        .delete()
+        .eq('email', email);
+
+      if (error) {
+        console.error('Error deleting account:', error);
+        Alert.alert('Error', 'Could not delete your account.');
+        return;
+      }
+
+      setEmail(null);
+      setName(null);
+
+      Alert.alert(
+        'Account deleted',
+        'Your account has been deleted.',
+        [{ text: 'OK', onPress: () => router.replace('/login') }]
+      );
+    } catch (err: any) {
+      console.error('Unexpected delete error:', err);
+      Alert.alert('Error', 'Something went wrong while deleting your account.');
+    }
+  };
+
   const handleDeleteAccount = () => {
+    if (!email) {
+      Alert.alert('Error', 'No account is currently logged in.');
+      return;
+    }
+
     Alert.alert(
       'Delete Account',
-      'This is only a UI prototype – no actual delete call yet.'
+      'Are you sure you want to delete your account? This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: actuallyDelete },
+      ]
     );
   };
 
@@ -38,12 +78,8 @@ export default function ProfileScreen() {
       <View style={styles.content}>
         <Text style={styles.title}>Profile</Text>
 
-        <Text style={styles.infoText}>
-          Name: {name ?? 'Unknown'}
-        </Text>
-        <Text style={styles.infoText}>
-          Email: {email ?? 'Unknown'}
-        </Text>
+        <Text style={styles.infoText}>Name: {name ?? 'Unknown'}</Text>
+        <Text style={styles.infoText}>Email: {email ?? 'Unknown'}</Text>
 
         <View style={styles.buttonGroup}>
           <TouchableOpacity

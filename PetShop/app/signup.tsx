@@ -8,30 +8,96 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
+  ScrollView,
   Alert,
 } from 'react-native';
 import { router } from 'expo-router';
+import { supabase } from '../lib/supabase';
+
+const BG = '#001F22';
+const TEAL = '#00756F';
+const TEXT = '#FFFFFF';
 
 export default function SignUpScreen() {
+  const [name, setName] = useState('');
+  const [mobile, setMobile] = useState('');
   const [email, setEmail] = useState('');
+  const [address, setAddress] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSignUp = () => {
-    if (!email || !password || !confirmPassword) {
-      Alert.alert('Missing info', 'Please fill out all fields.');
+  const handleSignUp = async () => {
+    if (!name || !email || !password || !confirmPassword) {
+      Alert.alert('Missing info', 'Please fill out name, email, and password.');
       return;
     }
     if (password !== confirmPassword) {
       Alert.alert('Password mismatch', 'Passwords do not match.');
       return;
     }
-    Alert.alert('Sign Up', 'Sign up pressed (wire this up later).');
+
+    try {
+      setLoading(true);
+
+      const trimmedEmail = email.trim();
+
+      const { data: existing, error: existingError } = await supabase
+        .from('customer')
+        .select('customerid')
+        .eq('email', trimmedEmail)
+        .maybeSingle();
+
+      if (existingError) {
+        console.error('Error checking existing customer:', existingError);
+        Alert.alert('Error', 'Could not verify email uniqueness.');
+        return;
+      }
+
+      if (existing) {
+        Alert.alert(
+          'Email in use',
+          'An account with this email already exists. Please log in instead.'
+        );
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('customer')
+        .insert([
+          {
+            name,
+            email: trimmedEmail,
+            password,
+            
+          },
+        ])
+        .select('customerid');
+
+      if (error) {
+        console.error('Error creating customer:', error);
+        Alert.alert('Sign up failed', error.message);
+        return;
+      }
+
+      console.log('Created customer:', data);
+
+      Alert.alert(
+        'Account created',
+        'Your account has been created. You can now log in.',
+        [{ text: 'OK', onPress: () => router.replace('/login') }]
+      );
+    } catch (err: any) {
+      console.error('Unexpected sign up error:', err);
+      Alert.alert('Error', 'Something went wrong while creating your account.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGoToLogin = () => {
-  router.replace('/login');
-};
+    router.replace('/login');
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -39,19 +105,57 @@ export default function SignUpScreen() {
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.inner}>
-          <Text style={styles.title}>Pet Shop</Text>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.title}>Create Account</Text>
+
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Name</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Full name"
+              placeholderTextColor="#A7D6D3"
+              value={name}
+              onChangeText={setName}
+            />
+          </View>
+
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Mobile</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Phone number"
+              placeholderTextColor="#A7D6D3"
+              keyboardType="phone-pad"
+              value={mobile}
+              onChangeText={setMobile}
+            />
+          </View>
 
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Email</Text>
             <TextInput
               style={styles.input}
-              placeholder="Email"
+              placeholder="Email address"
               placeholderTextColor="#A7D6D3"
               keyboardType="email-address"
               autoCapitalize="none"
               value={email}
               onChangeText={setEmail}
+            />
+          </View>
+
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Address</Text>
+            <TextInput
+              style={[styles.input, styles.multilineInput]}
+              placeholder="Street address"
+              placeholderTextColor="#A7D6D3"
+              value={address}
+              onChangeText={setAddress}
+              multiline
             />
           </View>
 
@@ -71,7 +175,7 @@ export default function SignUpScreen() {
             <Text style={styles.label}>Confirm Password</Text>
             <TextInput
               style={styles.input}
-              placeholder="Confirm Password"
+              placeholder="Confirm password"
               placeholderTextColor="#A7D6D3"
               secureTextEntry
               value={confirmPassword}
@@ -79,24 +183,27 @@ export default function SignUpScreen() {
             />
           </View>
 
-          <TouchableOpacity style={styles.button} onPress={handleSignUp}>
-            <Text style={styles.buttonText}>Sign Up</Text>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleSignUp}
+            disabled={loading}
+          >
+            <Text style={styles.buttonText}>
+              {loading ? 'Creating account...' : 'Sign Up'}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.footer} onPress={handleGoToLogin}>
             <Text style={styles.footerText}>
-              Have an account? <Text style={styles.footerLink}>Log in</Text>
+              Already have an account?{' '}
+              <Text style={styles.footerLink}>Log in instead</Text>
             </Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
-
-const BG = '#001F22';      
-const TEAL = '#00756F';     
-const TEXT = '#FFFFFF';
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -106,9 +213,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  inner: {
-    flex: 1,
+  scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: 24,
+    paddingTop: 40,
+    paddingBottom: 24,
     justifyContent: 'center',
   },
   title: {
@@ -116,7 +225,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: TEXT,
     textAlign: 'center',
-    marginBottom: 40,
+    marginBottom: 32,
   },
   fieldGroup: {
     marginBottom: 16,
@@ -134,6 +243,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     color: TEXT,
     fontSize: 16,
+  },
+  multilineInput: {
+    minHeight: 60,
+    textAlignVertical: 'top',
   },
   button: {
     marginTop: 24,
@@ -155,6 +268,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: TEXT,
     textDecorationLine: 'underline',
+    textAlign: 'center',
   },
   footerLink: {
     fontWeight: '600',

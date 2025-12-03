@@ -1,4 +1,5 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+
 import {
   View,
   Text,
@@ -14,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import BottomNav from './components/BottomNav';
 import { supabase } from '../lib/supabase';
+import { useCart } from './context/cartContext';
 
 type Pet = {
   id: string;
@@ -31,38 +33,42 @@ const getImageForSpecies = (species: string): string => {
   if (s.includes('fish')) {
     return 'https://images.pexels.com/photos/128756/pexels-photo-128756.jpeg?auto=compress&cs=tinysrgb&w=800';
   }
-
   if (s.includes('dog')) {
     return 'https://images.pexels.com/photos/257540/pexels-photo-257540.jpeg?auto=compress&cs=tinysrgb&w=800';
   }
-
   if (s.includes('cat')) {
     return 'https://images.pexels.com/photos/45201/kitty-cat-kitten-pet-45201.jpeg?auto=compress&cs=tinysrgb&w=800';
   }
-
   if (s.includes('bird')) {
     return 'https://images.pexels.com/photos/45851/bird-blue-cristata-cyanocitta-45851.jpeg?auto=compress&cs=tinysrgb&w=800';
   }
 
-  // default fallback
+  // default
   return 'https://images.pexels.com/photos/5731866/pexels-photo-5731866.jpeg?auto=compress&cs=tinysrgb&w=800';
 };
 
+const BG = '#001F22';
+const TEAL = '#00756F';
+const CARD = '#00343A';
 
 export default function HomeScreen() {
   const [pets, setPets] = useState<Pet[]>([]);
-  const [cartIds, setCartIds] = useState<string[]>([]);
   const [searchText, setSearchText] = useState('');
-  const [filterSpecies, setFilterSpecies] = useState<'All' | 'Dog' | 'Cat' | 'Fish' | 'Bird'>('All');
+  const [filterSpecies, setFilterSpecies] = useState<
+    'All' | 'Dog' | 'Cat' | 'Fish' | 'Bird'
+  >('All');
   const [sortOption, setSortOption] = useState<SortOption>('none');
   const [filterVisible, setFilterVisible] = useState(false);
   const [sortVisible, setSortVisible] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const { addItem } = useCart();
+
   useEffect(() => {
     const loadPets = async () => {
       try {
         setLoading(true);
+
         const { data, error } = await supabase
           .from('pet')
           .select('petid, name, species, adoptionfee');
@@ -71,7 +77,6 @@ export default function HomeScreen() {
           console.error('Error loading pets:', error);
           return;
         }
-
         if (!data) return;
 
         const mapped: Pet[] = data.map((row: any) => ({
@@ -83,6 +88,7 @@ export default function HomeScreen() {
         }));
 
         setPets(mapped);
+        console.log('Loaded pets:', mapped);
       } catch (err) {
         console.error('Unexpected error loading pets:', err);
       } finally {
@@ -93,25 +99,32 @@ export default function HomeScreen() {
     loadPets();
   }, []);
 
-  const handleAddToCart = (id: string) => {
-    setCartIds(prev => (prev.includes(id) ? prev : [...prev, id]));
-  };
+ const handleAddToCart = (pet: Pet) => {
+  addItem({
+    id: pet.id,
+    name: pet.name,
+    species: pet.species,  
+    price: pet.price,
+  });
 
-  const isInCart = (id: string) => cartIds.includes(id);
-
-  const handleLoadMore = () => {
-  };
+  setPets(prev => prev.filter(p => p.id !== pet.id));
+};
 
   const filteredPets = useMemo(() => {
     let result = [...pets];
 
     if (searchText.trim().length > 0) {
       const q = searchText.trim().toLowerCase();
-      result = result.filter(p => p.species.toLowerCase().includes(q));
+      result = result.filter(p =>
+        p.species.toLowerCase().includes(q) ||
+        p.name.toLowerCase().includes(q)
+      );
     }
 
     if (filterSpecies !== 'All') {
-      result = result.filter(p => p.species.toLowerCase() === filterSpecies.toLowerCase());
+      result = result.filter(
+        p => p.species.toLowerCase() === filterSpecies.toLowerCase()
+      );
     }
 
     if (sortOption === 'priceLowHigh') {
@@ -126,8 +139,6 @@ export default function HomeScreen() {
   }, [pets, searchText, filterSpecies, sortOption]);
 
   const renderPetCard = ({ item }: { item: Pet }) => {
-    const added = isInCart(item.id);
-
     return (
       <TouchableOpacity
         style={styles.cardContainer}
@@ -137,10 +148,6 @@ export default function HomeScreen() {
             pathname: '/pet/id',
             params: {
               id: item.id,
-              name: item.name,
-              species: item.species,
-              price: String(item.price),
-              imageUrl: item.imageUrl,
             },
           })
         }
@@ -153,18 +160,10 @@ export default function HomeScreen() {
         <Image source={{ uri: item.imageUrl }} style={styles.cardImage} />
 
         <TouchableOpacity
-          style={[
-            styles.addButton,
-            added && styles.addButtonAdded,
-          ]}
-          disabled={added}
-          onPress={() => handleAddToCart(item.id)}
+          style={styles.addButton}
+          onPress={() => handleAddToCart(item)}
         >
-          {added ? (
-            <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-          ) : (
-            <Ionicons name="add" size={16} color="#FFFFFF" />
-          )}
+          <Ionicons name="add" size={16} color="#FFFFFF" />
         </TouchableOpacity>
       </TouchableOpacity>
     );
@@ -176,10 +175,15 @@ export default function HomeScreen() {
         <Text style={styles.headerTitle}>Pet Search</Text>
 
         <View style={styles.searchBar}>
-          <Ionicons name="search" size={18} color="#A7D6D3" style={styles.searchIcon} />
+          <Ionicons
+            name="search"
+            size={18}
+            color="#A7D6D3"
+            style={styles.searchIcon}
+          />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search by species..."
+            placeholder="Search by species or name..."
             placeholderTextColor="#A7D6D3"
             value={searchText}
             onChangeText={setSearchText}
@@ -209,12 +213,10 @@ export default function HomeScreen() {
           keyExtractor={item => item.id}
           renderItem={renderPetCard}
           contentContainerStyle={styles.listContent}
-          onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.4}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             !loading ? (
-              <Text style={{ color: '#fff', marginTop: 20 }}>
+              <Text style={{ color: '#FFFFFF', marginTop: 20 }}>
                 No pets found.
               </Text>
             ) : null
@@ -290,7 +292,8 @@ export default function HomeScreen() {
               <Text
                 style={[
                   styles.modalOptionText,
-                  sortOption === 'priceLowHigh' && styles.modalOptionTextSelected,
+                  sortOption === 'priceLowHigh' &&
+                    styles.modalOptionTextSelected,
                 ]}
               >
                 Price: Low to High
@@ -310,7 +313,8 @@ export default function HomeScreen() {
               <Text
                 style={[
                   styles.modalOptionText,
-                  sortOption === 'priceHighLow' && styles.modalOptionTextSelected,
+                  sortOption === 'priceHighLow' &&
+                    styles.modalOptionTextSelected,
                 ]}
               >
                 Price: High to Low
@@ -349,10 +353,6 @@ export default function HomeScreen() {
     </View>
   );
 }
-
-const BG = '#001F22';
-const TEAL = '#00756F';
-const CARD = '#00343A';
 
 const styles = StyleSheet.create({
   screen: {
@@ -434,7 +434,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#FFFFFF',
-    marginRight: 17, 
+    marginRight: 12,
   },
   cardImage: {
     width: '100%',
@@ -451,9 +451,6 @@ const styles = StyleSheet.create({
     backgroundColor: TEAL,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  addButtonAdded: {
-    backgroundColor: '#1DB954',
   },
   modalBackdrop: {
     flex: 1,

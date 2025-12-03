@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -11,40 +11,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import BottomNav from './components/BottomNav';
 import { getAnimalPic } from './animalPics';
-
-type CartItem = {
-  id: string;
-  name: string;
-  species: string;
-  price: number;
-};
-
-const INITIAL_ITEMS: CartItem[] = [];
-
+import { useCart } from './context/cartContext';
 
 export default function CartScreen() {
-  const [items, setItems] = useState<CartItem[]>(INITIAL_ITEMS);
-  const [page, setPage] = useState(1);
+  const { items, removeItem } = useCart();
 
   const handleRemove = (id: string) => {
-    setItems(prev => prev.filter(item => item.id !== id));
-  };
-
-  const handleLoadMore = () => {
-    const nextPage = page + 1;
-    const extra = INITIAL_ITEMS.map(item => ({
-      ...item,
-      id: `${item.id}-p${nextPage}`,
-    }));
-    setPage(nextPage);
-    setItems(prev => [...prev, ...extra]);
+    removeItem(id);
   };
 
   const handleContinue = () => {
     router.push('/payment');
   };
 
-  const renderItem = ({ item }: { item: CartItem }) => (
+  const renderItem = ({ item }: { item: { id: string; name: string; species: string; price: number } }) => (
     <View style={styles.card}>
       <Image
         source={{ uri: getAnimalPic(item.species) }}
@@ -70,23 +50,21 @@ export default function CartScreen() {
       </View>
 
       <View style={styles.listContainer}>
-       <FlatList
-  data={items}
-  keyExtractor={item => item.id}
-  renderItem={renderItem}
-  showsVerticalScrollIndicator={false}
-  contentContainerStyle={styles.listContent}
-  onEndReached={handleLoadMore}
-  onEndReachedThreshold={0.4}
-  ListEmptyComponent={
-    <View style={styles.emptyContainer}>
-      <Text style={styles.emptyText}>Your cart is empty.</Text>
-      <Text style={styles.emptyTextSmall}>
-        Add pets from the Pet Search page.
-      </Text>
-    </View>
-  }
-/>
+        <FlatList
+          data={items}
+          keyExtractor={item => item.id}
+          renderItem={renderItem}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Your cart is empty.</Text>
+              <Text style={styles.emptyTextSmall}>
+                Add pets from the Pet Search page.
+              </Text>
+            </View>
+          }
+        />
       </View>
 
       <View style={styles.footer}>
@@ -115,20 +93,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
   },
-  emptyContainer: {
-  paddingTop: 24,
-  alignItems: 'center',
-},
-emptyText: {
-  color: '#FFFFFF',
-  fontSize: 18,
-  fontWeight: '700',
-  marginBottom: 4,
-},
-emptyTextSmall: {
-  color: '#E0F4F3',
-  fontSize: 14,
-},
   headerTitle: {
     fontSize: 28,
     fontWeight: '700',
@@ -142,6 +106,20 @@ emptyTextSmall: {
   },
   listContent: {
     paddingBottom: 16,
+  },
+  emptyContainer: {
+    paddingTop: 24,
+    alignItems: 'center',
+  },
+  emptyText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  emptyTextSmall: {
+    color: '#E0F4F3',
+    fontSize: 14,
   },
   card: {
     flexDirection: 'row',
