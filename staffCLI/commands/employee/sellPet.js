@@ -1,68 +1,106 @@
+import { getSupabaseServiceRoleClient } from '../../library/supabase-client.js';
 
-import { supabaseServiceRoleClient } from '../../library/supabase-client.js';
-
-const sellPetAction = async (session, petID, customerID) => {
-    if (!petID || !customerID) {
-        console.log("Usage: sell-pet <pet_id> <customer_id>");
+const sellPetAction = async (session, petid, customerid, paymentid) => {
+    const supabaseClient = getSupabaseServiceRoleClient();
+    
+    if (!petid || !customerid || !paymentid) {
+        console.log("Usage: sell-pet <pet_id> <customer_id> <payment_id>");
         return;
     }
 
-    console.log(`[${session.role.toUpperCase()}] Processing sale of Pet ID ${petID} to Customer ID ${customerID}...`);
+    const employeeid = session.employeeid || session.employeeID || session.id || session.uid; 
+    
+    if (!employeeid) {
+        console.error("Error: Employee ID not found in session. Please ensure you are logged in correctly.");
+        return;
+    }
 
-    try {
-        let { data: pet, error: petError } = await supabaseServiceRoleClient
-            .from('Pet')
-            .select('adoptionFee, adoptionStatus')
-            .eq('petID', petID)
-            .single();
+    const numericRegex = /^[1-9]\d*$/; 
+    
+    if (!numericRegex.test(petid)) {
+        console.error(`Error: Pet ID '${petid}' must be a positive number.`);
+        return;
+    }
+    if (!numericRegex.test(customerid)) {
+        console.error(`Error: Customer ID '${customerid}' must be a positive number.`);
+        return;
+    }
+    if (!numericRegex.test(paymentid)) {
+        console.error(`Error: Payment ID '${paymentid}' must be a positive number.`);
+        return;
+    }
 
-        if (petError || !pet) {
-            console.error(`Error: Pet ID ${petID} not found.`);
-            return;
+    const petId = petid; 
+    const custId = customerid;
+    const payId = paymentid;
+
+    console.log(`[${session.role.toUpperCase()}] Initiating sale for Pet ID ${petId}...`);
+
+    const { data: pet, error: petError } = await supabaseClient
+        .from('pet')
+        .select('adoptionfee, adoptionstatus')
+        .eq('petid', petId) 
+        .single();
+    
+    if (petError || !pet) {
+        console.error(`ERROR: Could not find Pet ID ${petId}.`);
+        if (petError) {
+             console.error(` 	Supabase Query Error: ${petError.message}`);
+        } else {
+             console.error(` 	No record found in the database with petid = ${petId}.`);
         }
-        if (pet.adoptionStatus !== 'Available') {
-            console.error(`Error: Pet ID ${petID} is currently ${pet.adoptionStatus}. Cannot sell.`);
-            return;
-        }
+        return;
+    }
+    
+    const totalAmount = parseFloat(pet.adoptionfee);
 
-        const orderData = {
-            customerID: customerID,
-            employeeid: session.employeeid, 
-            orderDate: new Date().toISOString(),
-            totalAmount: pet.adoptionFee,
-        };
-        const { data: order, error: orderError } = await supabaseServiceRoleClient
-            .from('Order')
-            .insert([orderData])
-            .select('orderID')
-            .single();
+    if (pet.adoptionstatus.toLowerCase() !== 'unadopted') {
+        console.error(`SALE REJECTED: Pet ID ${petId} is currently '${pet.adoptionstatus}'. Only 'unadopted' pets can be sold.`);
+        return;
+    }
+    
+    const orderDate = new Date().toISOString();
 
-        if (orderError) throw new Error(orderError.message);
-        const orderID = order.orderID;
+    const orderPayload = {
+        customerid: custId,
+        employeeid: employeeid, 
+        paymentid: payId,
+        petid: petId, 
+        orderdate: orderDate,
+        totalamount: totalAmount,
+    };
+    
+    const { data: orderResultData, error: orderError } = await supabaseClient
+        .from('orderinfo') 
+        .insert([orderPayload])
+        .select('orderid')
+        .single();
 
-        const { error: linkError } = await supabaseServiceRoleClient
-            .from('OrderPet')
-            .insert({ orderID: orderID, petID: petID });
-        if (linkError) throw new Error(linkError.message);
+    if (orderError) {
+        console.error(`ERROR inserting Order: ${orderError.message}`);
+        console.log(` 	  (Check if Customer ID ${custId} or Payment ID ${payId} exist.)`);
+        return;
+    }
+    
+    const newOrderID = orderResultData.orderid; 
+    console.log(` 	Order created successfully (ID: ${newOrderID}).`);
 
-        const { error: updateError } = await supabaseServiceRoleClient
-            .from('Pet')
-            .update({ adoptionStatus: 'Adopted' })
-            .eq('petID', petID);
-        if (updateError) throw new Error(updateError.message);
-        
-        console.log(`\n Transaction Complete!`);
-        console.log(`   Order ID: ${orderID}`);
-        console.log(`   Total Amount: $${pet.adoptionFee}`);
-        console.log(`   Pet status updated to 'Adopted'.`);
-
-    } catch (e) {
-        console.error(`\n FATAL TRANSACTION ERROR: ${e.message}`);
+    const { error: updateError } = await supabaseClient
+        .from('pet') 
+        .update({ adoptionstatus: 'adopted' })
+        .eq('petid', petId); 
+    
+    if (updateError) {
+        console.error(`WARNING: Order was created, but failed to update Pet status! Order ID: ${newOrderID}`);
+        console.error(` 	Update Error: ${updateError.message}`);
+    } else {
+        console.log(`SALE COMPLETE! Pet ID ${petId} is now 'adopted'.`);
+        console.log(` 	Order Details: ID ${newOrderID} for $${totalAmount.toFixed(2)}.`);
     }
 };
 
 export default {
     name: 'sell-pet',
-    description: 'Process the sale of a pet and update its status.',
+    description: 'Records a pet sale (adoption) by creating an ORDERINFO record and updating the pet status.',
     action: sellPetAction
 };

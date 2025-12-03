@@ -1,6 +1,16 @@
 import { Command } from 'commander';
 import * as readline from 'readline/promises';
-import { stdin as input, stdout as output } from 'process';
+import { stdin as input, stdout as output, exit } from 'process';
+
+import { config } from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+config({ path: path.resolve(__dirname, '..', '.env') });
+
+console.log(`[DIAGNOSTIC] Supabase URL loaded: ${!!process.env.SUPABASE_URL}`);
 
 import { loginAndGetRole } from './library/auth.js';
 import { employeeCommands } from './commands/employee/index.js'; 
@@ -10,72 +20,67 @@ const program = new Command();
 
 const availableCommands = new Map(); 
 
-
 function loadCommands(role) {
-    availableCommands.clear();
-    
-    // Load all EMPLOYEE commands for ALL staff
+    availableCommands.clear(); 
+
+    availableCommands.set('logout', { name: 'logout', description: 'Logs out of the current session.', action: async () => exit(0) });
+    availableCommands.set('help', { name: 'help', description: 'Displays available commands.', action: async () => {
+        console.log("\nAvailable Commands:");
+        availableCommands.forEach(cmd => {
+            console.log(`  ${cmd.name.padEnd(15)} - ${cmd.description}`);
+        });
+        console.log("");
+    }});
+
     employeeCommands.forEach(cmd => {
-        availableCommands.set(cmd.name, cmd.action); 
+        availableCommands.set(cmd.name, cmd);
     });
 
-    // Load ADMIN-only commands for OWNER ONLY
-    if (role === 'admin') {
+    if (role.toLowerCase() === 'admin') {
         adminCommands.forEach(cmd => {
-            availableCommands.set(cmd.name, cmd.action);
+            availableCommands.set(cmd.name, cmd);
         });
     }
-}
 
+    console.log(`Successfully loaded ${availableCommands.size} commands for role: ${role.toUpperCase()}`);
+}
 
 async function startInteractiveSession(session) {
     const rl = readline.createInterface({ input, output });
-    
-    console.log(`\nWelcome back, ${session.role.toUpperCase()}!`);
-    console.log("Type 'help' for commands or 'exit'/'quit' to log out.");
-    
-    let running = true;
-    while (running) {
-        // shows the user's current role
-        const promptText = `staffcli(${session.role})> `;
-        let inputLine = await rl.question(promptText);
-        
-        const parts = inputLine.trim().split(/\s+/).filter(p => p.length > 0);
-        const commandName = parts[0];
-        const args = parts.slice(1);
-        
-        if (!commandName) continue;
+    const role = session.role.toUpperCase();
 
-        if (commandName === 'exit' || commandName === 'quit') {
-            running = false;
-            console.log('Logging out. Goodbye!');
-            break;
+    while (true) {
+        let commandLine;
+        try {
+            commandLine = await rl.question(`[${role}] petshop> `);
+        } catch (e) {
+            console.log("\nSession terminated.");
+            exit(0);
         }
 
-        if (commandName === 'help') {
-            console.log("\nAvailable Commands:");
-            availableCommands.forEach((action, name) => {
-                const commandObj = [...employeeCommands, ...adminCommands].find(c => c.name === name);
-                console.log(`  ${name}: ${commandObj ? commandObj.description : 'No description available'}`);
-            });
+        const parts = commandLine.trim().split(/\s+/);
+        const commandName = parts[0].toLowerCase();
+        const args = parts.slice(1);
+
+        if (commandName === '') {
             continue;
         }
 
-        // Execute the command if it exists
-        if (availableCommands.has(commandName)) {
+        const command = availableCommands.get(commandName);
+
+        if (command) {
             try {
-                await availableCommands.get(commandName)(session, ...args);
+                await command.action(session, ...args);
             } catch (e) {
-                console.error(`\nCommand Execution Error: ${e.message}`);
+                console.error(`\nCOMMAND EXECUTION ERROR: An unhandled error occurred during '${commandName}' execution.`);
+                console.error(e.message);
             }
         } else {
-            console.log(`\nError: Command '${commandName}' not recognized. Type 'help' to see available commands.`);
+            console.log(`\nCommand not recognized: ${commandName}`);
+            console.log("Type 'help' for a list of available commands.");
         }
     }
-    
-    rl.close();
 }
-
 
 
 program
@@ -87,10 +92,10 @@ program
         const loginData = await loginAndGetRole(email, password);
         
         if (loginData) {
-            loadCommands(loginData.role);
+            loadCommands(loginData.role); 
             await startInteractiveSession(loginData);
         } else {
-             process.exit(0);
+             exit(0);
         }
     });
 
@@ -102,7 +107,7 @@ async function run() {
         program.help();
         return;
     }
-    await program.parseAsync(process.argv);
+await program.parseAsync(process.argv);
 }
 
 run();
