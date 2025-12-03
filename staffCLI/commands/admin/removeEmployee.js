@@ -18,8 +18,6 @@ const removeEmployeeAction = async (session, employeeID) => {
 
   if (error) {
     console.error(`ERROR deleting Employee: ${error.message}`);
-  } else if (data.length === 0) {
-    console.log(`Employee ID ${id} not found.`);
   } else {
     console.log(`Employee ID ${id} deleted successfully!`);
   }
