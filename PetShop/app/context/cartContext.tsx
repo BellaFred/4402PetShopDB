@@ -5,6 +5,7 @@ export type CartItem = {
   name: string;
   species: string;
   price: number;
+  imageUrl: string;
 };
 
 type CartContextType = {
@@ -26,7 +27,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const addItem = (item: CartItem) => {
     setItems(prev => {
-      if (prev.find(p => p.id === item.id)) return prev; // avoid duplicates
+      if (prev.find(p => p.id === item.id)) return prev; 
       return [...prev, item];
     });
   };

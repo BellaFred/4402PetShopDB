@@ -107,6 +107,7 @@ export default function HomeScreen() {
     name: pet.name,
     species: pet.species,  
     price: pet.price,
+    imageUrl: pet.imageUrl,
   });
 
   setPets(prev => prev.filter(p => p.id !== pet.id));

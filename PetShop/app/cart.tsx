@@ -10,8 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import BottomNav from './components/BottomNav';
-import { getAnimalPic } from './animalPics';
-import { useCart } from './context/cartContext';
+import { useCart } from './context/cartContext'; 
 
 export default function CartScreen() {
   const { items, removeItem } = useCart();
@@ -24,10 +23,10 @@ export default function CartScreen() {
     router.push('/payment');
   };
 
-  const renderItem = ({ item }: { item: { id: string; name: string; species: string; price: number } }) => (
+  const renderItem = ({ item }: any) => (
     <View style={styles.card}>
       <Image
-        source={{ uri: getAnimalPic(item.species) }}
+        source={{ uri: item.imageUrl }} 
         style={styles.cardImage}
       />
       <View style={styles.cardInfo}>
