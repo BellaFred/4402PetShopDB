@@ -67,7 +67,7 @@ const updateEmployeeAction = async (session, employeeID, field, value) => {
       break;
     case "password":
       const stringPassword = value;
-      if (stringValue.toString().length < 0) {
+      if (stringPassword.toString().length < 0) {
         console.error(`Error: Invalid Password`);
         return;
       }
@@ -91,6 +91,7 @@ const updateEmployeeAction = async (session, employeeID, field, value) => {
         );
         break;
       }
+      finalValue = value;
       break;
     case "routingnumber":
       const stringRoutingNumber = parseInt(value);
