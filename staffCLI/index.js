@@ -36,7 +36,7 @@ function loadCommands(role) {
         availableCommands.set(cmd.name, cmd);
     });
 
-    if (role.toLowerCase() === 'admin') {
+    if (role.toLowerCase() === 'owner') {
         adminCommands.forEach(cmd => {
             availableCommands.set(cmd.name, cmd);
         });
