@@ -1,0 +1,16 @@
+{
+  "name": "4402petshop",
+  "version": "1.0.0",
+  "description": "CSC4402 Project CLI and Expo App",
+  "main": "staffCLI/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node staffCLI/index.js",
+    "test-cli": "node staffCLI/test-queries.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.0.0",
+    "commander": "^12.0.0",
+    "dotenv": "^16.4.5"
+  }
+}
