@@ -61,9 +61,7 @@ const updateEmployeeAction = async (session, employeeID, field, value) => {
         console.error(`Error: Invalid Password`);
         return;
       }
-      let newString = stringValue.replace(/_/g," ");
-      console.log(newString);
-      finalValue = newString;
+      finalValue = stringValue;
       break;
     case "password":
       const stringPassword = value;

@@ -28,7 +28,7 @@ const addEmployeeAction = async (
     console.error(`Error: Invalid Name`);
     return;
   }
-  const finalName = name.replace(/_/g, " ");
+  const finalName = name;
   if (password.toString().length < 0) {
     console.error(`Error: Invalid Password`);
     return;

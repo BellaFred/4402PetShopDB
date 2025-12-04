@@ -52,8 +52,7 @@ const searchEmployeesAction = async (session, field, criteria) => {
         console.error(`Error: Invalid Password`);
         return;
       }
-      let newString = stringcriteria.replace(/_/g, " ");
-      finalCriteria = newString;
+      finalCriteria = stringcriteria;
       break;
     case "password":
       const stringPassword = criteria;
