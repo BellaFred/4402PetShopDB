@@ -76,16 +76,9 @@ sell-pet         - Record a sale/adoption and update status
 add-employee     - Adds a new employee into the database and prints out their employeeID afterwards
 update-employee  - Edit employee fields (name, email, salary, etc.)
 remove-employee  - Removes employee using their employeeID
+search-employees - Searchs for employees based on given field and criteria
+view-employee    - Views information on an employee using their employeeID
 ```
-
-### Important Notes
-When inputing an employee's name or address, replace spaces with underscores:
-```
-update-employee 71599737 name Johnny_Brooks
-add-employee testing@testing.com William_Gates BillLovesApples! employee 123456789
-```
-
----
 
 ## Contributors
 Helena Schuler  
@@ -139,3 +132,4 @@ FROM pet
 ORDER BY adoptionfee DESC
 LIMIT 1;
 ```
+
