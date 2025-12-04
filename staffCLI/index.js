@@ -45,6 +45,39 @@ function loadCommands(role) {
     console.log(`Successfully loaded ${availableCommands.size} commands for role: ${role.toUpperCase()}`);
 }
 
+
+function parseArgs(commandLine) {
+    const args = [];
+    let currentArg = '';
+    let inQuote = false;
+    
+   
+    const trimmedLine = commandLine.trim();
+
+    for (let i = 0; i < trimmedLine.length; i++) {
+        const char = trimmedLine[i];
+
+        if (char === '"') {
+          
+            inQuote = !inQuote;
+        } else if (char === ' ' && !inQuote) {
+            if (currentArg.length > 0) {
+                args.push(currentArg);
+            }
+            currentArg = '';
+        } else {
+            currentArg += char;
+        }
+    }
+
+    if (currentArg.length > 0) {
+        args.push(currentArg);
+    }
+
+    return args;
+}
+
+
 async function startInteractiveSession(session) {
     const rl = readline.createInterface({ input, output });
     const role = session.role.toUpperCase();
@@ -58,8 +91,9 @@ async function startInteractiveSession(session) {
             exit(0);
         }
 
-        const parts = commandLine.trim().split(/\s+/);
-        const commandName = parts[0].toLowerCase();
+        const parts = parseArgs(commandLine); 
+        
+        const commandName = parts[0] ? parts[0].toLowerCase() : '';
         const args = parts.slice(1);
 
         if (commandName === '') {
