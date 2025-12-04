@@ -106,6 +106,8 @@ Jessica Chan
 
 ### Test Queries 
 
+Once given proper access to the Supabase organization 'csc4402', enter the 'csc4402' project, open the side bar, and click 'SQL Editor.' Copy and paste the following test queries into the editor one by one, then press the 'Run' button.
+
 Test Query 1 – List all dogs and their adoption fees
 ```
 SELECT petid, name, breed, adoptionfee
@@ -148,6 +150,7 @@ FROM pet
 ORDER BY adoptionfee DESC
 LIMIT 1;
 ```
+
 
 
 
