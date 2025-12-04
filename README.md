@@ -62,9 +62,17 @@ npm install dotenv
 ```
 
 ### Log In terminal
-Temporary Example:
+Owner CLI Example:
+
 ```
-node --import dotenv ./StaffCLI/index.js login pgpwidu4@example.com S5VKLlQmO
+cd staffCLI
+node index.js login pgpwidu4@example.com S5VKLlQmO
+```
+Employee CLI Example:
+
+```
+cd staffCLI
+node index.js login wr66oylp@example.com FGYlb4kkYgtQyp
 ```
 
 ### Available Commands
@@ -140,5 +148,6 @@ FROM pet
 ORDER BY adoptionfee DESC
 LIMIT 1;
 ```
+
 
 
