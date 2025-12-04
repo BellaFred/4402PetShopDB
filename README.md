@@ -95,3 +95,47 @@ Gerald Hebert
 Bella Frederick  
 Jessica Chan
 
+### Test Queries 
+
+Test Query 1 – List all dogs and their adoption fees
+```
+SELECT petid, name, breed, adoptionfee
+FROM pet
+WHERE species = 'dog';
+```
+
+Test Query 2 – Orders with customer, employee, and pet details
+```
+SELECT 
+    o.orderid,
+    c.name AS customer_name,
+    e.name AS employee_name,
+    p.name AS pet_name,
+    o.orderdate,
+    o.totalamount
+FROM orderinfo o
+JOIN customer c ON o.customerid = c.customerid
+JOIN employee e ON o.employeeid = e.employeeid
+JOIN pet p ON o.petid = p.petid;
+```
+
+Test Query 3 – Count number of pets by species
+```
+SELECT species, COUNT(*) AS total_pets
+FROM pet
+GROUP BY species;
+```
+
+Test Query 4 – Total revenue from all orders
+```
+SELECT SUM(totalamount) AS total_revenue
+FROM orderinfo;
+```
+
+Test Query 5 – Highest adoption fee
+```
+SELECT name, species, breed, adoptionfee
+FROM pet
+ORDER BY adoptionfee DESC
+LIMIT 1;
+```
